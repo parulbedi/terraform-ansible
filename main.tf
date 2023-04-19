@@ -110,16 +110,17 @@ resource "aws_instance" "my_instance_control_node" {
 #   provisioner "local-exec" {
 #     command = "touch test"
 #   }
-  
+
   provisioner "remote-exec" {
     inline = [
 	#   "sudo apt-get update",
     #   "sudo apt-get install apache2 -y",
 	#   "sudo systemctl start apache2",
       "sudo apt-add-repository ppa:ansible/ansible -y",
-        "sudo apt-get update -y",
+      "sudo apt-get update -y",
       "sudo apt-get upgrade -y",
       "sudo apt install ansible -y",
+
     ]
     on_failure = "continue"
   }
@@ -128,8 +129,6 @@ resource "aws_instance" "my_instance_control_node" {
 #     source      = "terraform.tfstate.backup"
 #     destination = "/tmp/"
 #   } 
-
-
 
 #   provisioner "file" {
 #     source      = "configure.sh"
@@ -165,4 +164,13 @@ resource "aws_instance" "my_instance_manage_node" {
   tags = {
     Name = "my-manage-node"
   }
+}
+
+resource "local_file" "inventory" {
+  filename   = "/etc/ansible/hosts"
+  content    = <<EOF
+    [webservers]
+    ${aws_instance.my_instance_manage_node.public_ip}
+  EOF
+  depends_on = [aws_instance.my_instance_manage_node]
 }
