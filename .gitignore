@@ -30,4 +30,3 @@ override.tf.json
 
 # pem files
 *.pem
-*.pem*
