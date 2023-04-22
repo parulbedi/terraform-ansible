@@ -86,6 +86,10 @@ resource "aws_security_group" "my_sg" {
   }
 }
 
+# resource "local_file" "pemfile" {
+#   filename             = "instance-key.pem"
+#   file_permission      = "400"
+# }
 
 resource "aws_instance" "my_instance_control_node" {
   ami           = "ami-0aa2b7722dc1b5612"
@@ -104,6 +108,7 @@ resource "aws_instance" "my_instance_control_node" {
       private_key = file("instance-key.pem")
      # host       = aws_instance.my_instance_control_node.public_ip
       host        = self.public_ip
+      agent    = "false"
   }
 
   # provisioner "file" {
@@ -133,11 +138,13 @@ provisioner "remote-exec" {
           "sudo apt-get update -y",
           "sudo apt-get upgrade -y",
           "sudo apt-get install ansible -y",
+        
           "sudo chmod -R o+rwx /etc/ansible/hosts",
           "echo [webservers] >> /etc/ansible/hosts",
           "echo ${aws_instance.my_instance_manage_node.public_ip} >> /etc/ansible/hosts",
-          "ls"
+          # "ansible all -m ping --private-key=~/instance-key.pem"
       ]
+        # depends_on = [null_resource.copy_pem_file]
 }
 
   # provisioner "file" {
@@ -210,8 +217,14 @@ provisioner "remote-exec" {
 #   }
 }
 
-resource "null_resource" "copy-test-file" {
+resource "null_resource" "copy_pem_file" {
 
+  # provisioner "local-exec" {
+  #   command = "chmod 400 instance-key.pem"
+  #   environment = {
+  #     ANSIBLE_HOST_KEY_CHECKING = "False"
+  #   }
+  # }
 # provisioner "remote-exec" {
 
 #   connection {
@@ -230,10 +243,14 @@ resource "null_resource" "copy-test-file" {
     user        = "ubuntu"
     private_key = file("instance-key.pem")
     host        = aws_instance.my_instance_control_node.public_ip
+    agent    = "false"
   }
     source      = "instance-key.pem"
-    destination = "/home/ubuntu/instance-key.pem"
+    destination = "/home/ubuntu/.ssh/instance-key.pem"
+    # file_permission = "0400"
+    # destination = "~/.ssh/instance-key.pem"
   }
+
 }
 
 # resource "local_file" "inventory" {
@@ -256,6 +273,13 @@ resource "aws_instance" "my_instance_manage_node" {
   }
 }
 
+
+# provisioner "remote-exec" {
+#   inline = [
+#           "chmod 400 /home/ubuntu/.ssh/instance-key.pem",
+#       ]
+# }
+
 # resource "local_file" "inventory" {
 #   filename   = "../ansible/hosts"
 #   content    = "hello"
@@ -268,3 +292,14 @@ resource "aws_instance" "my_instance_manage_node" {
 #     ${aws_instance.my_instance_manage_node.public_ip}
 #   EOF
 # }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod 400 /home/ubuntu/.ssh/instance-key.pem"
+    ]
+    connection {
+      type          = "ssh"
+      user          = "ubuntu"
+      private_key = file("instance-key.pem")
+    }
+  }
