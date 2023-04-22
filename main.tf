@@ -53,9 +53,8 @@ resource "aws_route_table" "my_rt" {
 resource "aws_route_table_association" "my_rt" {
     subnet_id = aws_subnet.my_public_subnet.id
     route_table_id = aws_route_table.my_rt.id
-    
-}
 
+}
 
 resource "aws_security_group" "my_sg" {
   name        = "my-sg"
@@ -104,37 +103,97 @@ resource "aws_instance" "my_instance_control_node" {
       user        = "ubuntu"
       private_key = file("instance-key.pem")
      # host       = aws_instance.my_instance_control_node.public_ip
-      host = self.public_ip
+      host        = self.public_ip
   }
 
-#   provisioner "local-exec" {
-#     command = "touch test"
-#   }
+  # provisioner "file" {
+  #   source      = "instance-key.pem"
+  #   destination = "../instance-key.pem"
+  # }
 
-  provisioner "remote-exec" {
-    inline = [
-	#   "sudo apt-get update",
-    #   "sudo apt-get install apache2 -y",
-	#   "sudo systemctl start apache2",
-      "sudo apt-add-repository ppa:ansible/ansible -y",
-      "sudo apt-get update -y",
-      "sudo apt-get upgrade -y",
-      "sudo apt install ansible -y",
+  # provisioner "local-exec" {
+  #   command = "chmod 700 instance-key.pem"
+  #   command = "scp -i instance-key.pem ubuntu@${aws_instance.my_instance_control_node.public_ip} instance-key.pem :/home/ubuntu/"
 
-    ]
-    on_failure = "continue"
-  }
-  
+  # }
+
+
+# provisioner "remote-exec" {
+#   command = <<-EOT
+#           sudo apt-get update -y
+#           sudo apt-get upgrade -y
+#           sudo apt-get install ansible -y
+#           sudo chmod -R o+rwx /etc/ansible/hosts
+#       EOT
+# }
+
+
+provisioner "remote-exec" {
+  inline = [
+          "sudo apt-get update -y",
+          "sudo apt-get upgrade -y",
+          "sudo apt-get install ansible -y",
+          "sudo chmod -R o+rwx /etc/ansible/hosts",
+          "echo [webservers] >> /etc/ansible/hosts",
+          "echo ${aws_instance.my_instance_manage_node.public_ip} >> /etc/ansible/hosts",
+          "ls"
+      ]
+}
+
+  # provisioner "file" {
+  #   source      = "instance-key.pem"
+  #   destination = "/tmp/instance-key.pem"
+  # } 
+
+# provisioner "remote-exec" {
+#     inline = [
+#       "sudo apt-add-repository ppa:ansible/ansible -y",
+#       "sudo apt-get update 
+#       "sudo apt-get upgrade -y",
+#       "sudo apt install ansible -y",
+#       "sudo chmod -R o+rwx /etc/ansible/hosts"
+#     ]
+# }
+
+
+  # provisioner "remote-exec" {
+  #   inline = [
+	#     # "sudo apt-get update",
+  #     # "sudo apt-get install apache2 -y",
+	#     # "sudo systemctl start apache2",
+  #     "sudo apt-add-repository ppa:ansible/ansible -y",
+  #     "sudo apt-get update -y",
+  #     "sudo apt-get upgrade -y",
+  #     "sudo apt install ansible -y",
+  #     # "sudo chmod -R  /etc/ansible/hosts"
+  #     # "sudo chmod -R o+rwx /etc/ansible/hosts"
+
+  #   ]
+  #   on_failure = "continue"
+  # }
+
+
+# provisioner "file" {
+#     # command = "sudo chmod -R o+rwx /etc/ansible/hosts"
+#     destination = "../ansible/hosts"
+#     content    = <<-EOF
+#     [webservers]
+#     ${aws_instance.my_instance_manage_node.public_ip}
+#   EOF
+# }
+
+
+
+# ===================================================
 #   provisioner "file" {
 #     source      = "terraform.tfstate.backup"
 #     destination = "/tmp/"
 #   } 
-
+# ===================================================
 #   provisioner "file" {
 #     source      = "configure.sh"
 #     destination = "/tmp/configure.sh"
 #   }
-
 #   provisioner "remote-exec" {
 #     connection {
 #       host        = aws_instance.my_instance_control_node.public_ip
@@ -143,16 +202,47 @@ resource "aws_instance" "my_instance_control_node" {
 #       agent       = false
 #       private_key = file("instance-key.pem")
 #     }
-    
 #     inline = [
 #       "chmod +x /tmp/configure.sh",
 #       "/tmp/configure.sh",
 #       "logout",
 #     ]
+#   }
+}
 
+resource "null_resource" "copy-test-file" {
+
+# provisioner "remote-exec" {
+
+#   connection {
+#     type        = "ssh"
+#     user        = "ubuntu"
+#     private_key = file("instance-key.pem")
+#     host        = aws_instance.my_instance_control_node.public_ip
 #   }
 
+# }
+
+  provisioner "file" {
+
+   connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = file("instance-key.pem")
+    host        = aws_instance.my_instance_control_node.public_ip
+  }
+    source      = "instance-key.pem"
+    destination = "/home/ubuntu/instance-key.pem"
+  }
 }
+
+# resource "local_file" "inventory" {
+#   filename   = "/etc/ansible/hosts"
+#   content    = <<EOF
+#   webservers
+#   ${aws_instance.my_instance_manage_node.public_ip}
+#   EOF
+# }
 
 resource "aws_instance" "my_instance_manage_node" {
   ami           = "ami-0aa2b7722dc1b5612"
@@ -166,11 +256,15 @@ resource "aws_instance" "my_instance_manage_node" {
   }
 }
 
-resource "local_file" "inventory" {
-  filename   = "/etc/ansible/hosts"
-  content    = <<EOF
-    [webservers]
-    ${aws_instance.my_instance_manage_node.public_ip}
-  EOF
-  depends_on = [aws_instance.my_instance_manage_node]
-}
+# resource "local_file" "inventory" {
+#   filename   = "../ansible/hosts"
+#   content    = "hello"
+# }
+
+# resource "local_file" "inventory" {
+#   filename   = "../ansible/hosts"
+#   content    = <<-EOF
+#     [webservers]
+#     ${aws_instance.my_instance_manage_node.public_ip}
+#   EOF
+# }
